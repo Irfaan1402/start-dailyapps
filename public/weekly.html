@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Point hebdomadaire — Semaine écoulée</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+    <style>
+      :root {
+        --paper: #f4f6f8;
+        --card: #ffffff;
+        --ink: #1b2733;
+        --muted: #6b7886;
+        --hair: #dce2e8;
+        --done: #1f8a55;
+        --done-bg: #e8f4ec;
+        --today: #2563c9;
+        --today-bg: #e8eefb;
+        --shadow: 0 1px 2px rgba(27, 39, 51, 0.06), 0 8px 24px rgba(27, 39, 51, 0.05);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 2rem clamp(1rem, 4vw, 3rem) 1.25rem;
+        border-bottom: 1px solid var(--hair);
+      }
+      h1 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: clamp(1.4rem, 2.4vw, 2.1rem);
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 0.35rem;
+      }
+      .header-actions { display: flex; align-items: center; gap: 1.25rem; }
+      .dl-btn {
+        font: inherit; font-size: 0.85rem; font-weight: 500;
+        background: var(--ink); color: #fff; border: 0;
+        padding: 0.55rem 1rem; border-radius: 8px; cursor: pointer;
+        box-shadow: var(--shadow); white-space: nowrap;
+      }
+      .dl-btn:hover { background: #2c3a48; }
+      .dl-btn:disabled { opacity: 0.6; cursor: progress; }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--done);
+        box-shadow: 0 0 0 0 rgba(31, 138, 85, 0.5);
+        animation: pulse 2.4s infinite;
+      }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(31, 138, 85, 0.45); }
+        70% { box-shadow: 0 0 0 7px rgba(31, 138, 85, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(31, 138, 85, 0); }
+      }
+      main { padding: 1.5rem clamp(1rem, 4vw, 3rem) 4rem; }
+      .component-block { margin-bottom: 1rem; animation: rise 0.4s ease both; }
+      .component-head {
+        display: flex; align-items: center; gap: 0.75rem;
+        cursor: pointer; user-select: none;
+        background: none; border: 0; padding: 0.6rem 0; margin: 0;
+        font: inherit; color: inherit; text-align: left; width: 100%;
+        border-bottom: 2px solid var(--hair);
+      }
+      .component-title {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700; font-size: 1.15rem; margin: 0;
+      }
+      .component-head .count { font-size: 0.78rem; color: var(--muted); }
+      .component-head .chevron { margin-left: auto; }
+      .component-block.collapsed .lanes { display: none; }
+      .component-block.collapsed .component-head .chevron { transform: rotate(-90deg); }
+      .lanes { padding-left: 0.25rem; }
+      .lane {
+        display: grid;
+        grid-template-columns: 220px 1fr 1fr;
+        align-items: start;
+        gap: 1rem;
+        padding: 1.25rem 0;
+        border-bottom: 1px solid var(--hair);
+        animation: rise 0.4s ease both;
+      }
+      @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      .who {
+        display: flex; align-items: center; gap: 0.75rem;
+        cursor: pointer; user-select: none;
+        background: none; border: 0; padding: 0; margin: 0;
+        font: inherit; color: inherit; text-align: left; width: 100%;
+      }
+      .chevron {
+        flex: none; margin-left: auto; color: var(--muted);
+        transition: transform 0.2s ease;
+      }
+      .lane.collapsed .chevron { transform: rotate(-90deg); }
+      .lane.collapsed { grid-template-columns: 1fr; }
+      .lane.collapsed .col-done,
+      .lane.collapsed .col-progress { display: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .chevron { transition: none; }
+      }
+      .avatar {
+        flex: none;
+        width: 44px; height: 44px; border-radius: 50%;
+        display: grid; place-items: center;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600; font-size: 1rem;
+        background: var(--ink); color: #fff;
+      }
+      .who .name { font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 1.05rem; }
+      .who .count { font-size: 0.78rem; color: var(--muted); }
+      .col-label {
+        font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--muted); margin: 0 0 0.6rem;
+      }
+      .stack { display: flex; flex-direction: column; gap: 0.75rem; }
+      .comp-group { display: flex; flex-direction: column; gap: 0.4rem; }
+      .comp-label {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 0.72rem; font-weight: 600;
+        color: var(--ink);
+        margin: 0;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid var(--hair);
+      }
+      .comp-chip {
+        display: inline-block;
+        padding: 0.1rem 0.45rem;
+        border-radius: 4px;
+        color: #1a1a1a;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        padding: 0.6rem 0.75rem;
+        box-shadow: var(--shadow);
+        text-decoration: none;
+        color: inherit;
+        display: block;
+      }
+      .card:hover { border-color: #c4ccd4; }
+      .card .top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+      .key { font-family: "JetBrains Mono", monospace; font-size: 0.74rem; color: var(--muted); }
+      .pill {
+        margin-left: auto;
+        font-size: 0.68rem; font-weight: 500;
+        padding: 0.12rem 0.5rem; border-radius: 999px;
+      }
+      .col-done .pill { background: var(--done-bg); color: var(--done); }
+      .col-progress .pill { background: var(--today-bg); color: var(--today); }
+      .summary { font-size: 0.9rem; line-height: 1.35; }
+      .col-done .summary { color: var(--muted); }
+      .empty { font-size: 0.85rem; color: var(--muted); font-style: italic; padding: 0.3rem 0; }
+      .notice { padding: 3rem clamp(1rem, 4vw, 3rem); color: var(--muted); }
+      .notice.error { color: #b3261e; }
+      .section-title {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700; font-size: clamp(1.2rem, 2vw, 1.6rem);
+        margin: 0 0 1.5rem;
+      }
+      .priorities { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid var(--ink); }
+      .priorities-title {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700; font-size: clamp(1.2rem, 2vw, 1.6rem);
+        margin: 0 0 1.5rem;
+      }
+      .priority-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+      .priority-label {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700; font-size: 1rem; letter-spacing: 0.04em;
+        margin: 0 0 1rem; padding-bottom: 0.45rem;
+        border-bottom: 1px solid var(--hair);
+      }
+      .priority-label.highest { color: #b3261e; }
+      .priority-label.high { color: #b3691e; }
+      .priority-group .comp-group { margin-bottom: 1rem; }
+
+      /* BOOST HEBDO banner */
+      .boost { padding: 1.5rem clamp(1rem, 4vw, 3rem) 0; }
+      .boost-top { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem; }
+      .boost-card {
+        background: var(--card); border: 1px solid var(--hair);
+        border-radius: 14px; box-shadow: var(--shadow); padding: 1.5rem;
+      }
+      .boost-title {
+        font-family: "Space Grotesk", sans-serif; font-weight: 700;
+        line-height: 0.95; margin: 0; letter-spacing: -0.02em;
+        font-size: clamp(2rem, 5vw, 3.2rem);
+      }
+      .boost-title .accent { color: #e8412f; display: block; }
+      .boost-pill {
+        margin-top: 1.25rem; display: inline-block;
+        background: #fdecec; color: #e8412f; border-radius: 999px;
+        padding: 0.55rem 1.1rem; font-size: 0.9rem; font-weight: 500;
+      }
+      .boost-dark { background: var(--ink); color: #fff; }
+      .boost-eyebrow {
+        color: #f4a13c; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; font-size: 0.75rem;
+        display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1.1rem;
+      }
+      .theme-input {
+        display: block; width: 100%; background: transparent; border: none;
+        color: #fff; font-family: "Space Grotesk", sans-serif; font-weight: 700;
+        font-size: clamp(1.3rem, 2.6vw, 2rem); padding: 0; letter-spacing: -0.01em;
+      }
+      .theme-quote {
+        display: block; width: 100%; background: transparent; border: none;
+        color: #aeb6c2; font-style: italic; font-size: 1rem; margin-top: 1.1rem;
+        font-family: "Inter", sans-serif;
+      }
+      .theme-input:focus, .theme-quote:focus, .incident-inputs input:focus, .tour input:focus {
+        outline: none;
+      }
+      .theme-input:focus, .theme-quote:focus { border-bottom: 1px dashed #4a5566; }
+      .boost-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+      .boost-icon { font-size: 1.5rem; line-height: 1; }
+      .boost-label { color: var(--muted); font-size: 0.95rem; margin: 0.6rem 0 0; }
+      .meteo-title { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 1.2rem; margin: 0; }
+      .meteo-emojis { font-size: 1.7rem; display: flex; gap: 0.55rem; margin: 0.9rem 0; }
+      .meteo-q { color: var(--muted); font-size: 0.9rem; margin: 0; }
+      .incident-inputs { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+      .incident-inputs input {
+        width: 2.6ch; background: transparent; border: none;
+        font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 2rem;
+        color: #e8412f; text-align: center; padding: 0;
+        -moz-appearance: textfield;
+      }
+      .incident-inputs input::-webkit-outer-spin-button,
+      .incident-inputs input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      .incident-inputs .vs { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 1.4rem; color: var(--ink); }
+      .boost-metric {
+        font-family: "Space Grotesk", sans-serif; font-weight: 700;
+        font-size: 2.4rem; margin-top: 0.3rem;
+      }
+      .metric-x { color: #1f8a9a; }
+      .metric-y { color: #f4a13c; }
+      .tour {
+        background: #f76b6b; color: #fff; border-radius: 14px;
+        padding: 1.1rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+      }
+      .tour .boost-icon { font-size: 1.3rem; }
+      .tour input {
+        flex: 1; background: transparent; border: none; color: #fff;
+        font-family: "Space Grotesk", sans-serif; font-weight: 700;
+        font-size: clamp(1rem, 1.8vw, 1.35rem);
+      }
+      .tour input::placeholder { color: rgba(255,255,255,0.6); }
+      @media (max-width: 760px) {
+        .boost-top { grid-template-columns: 1fr; }
+        .boost-row { grid-template-columns: 1fr 1fr; }
+      }
+      /* Keep blocks intact across PDF page breaks. */
+      .card, .comp-group, .boost-card, .priority-group, .lane { break-inside: avoid; }
+      @media (max-width: 760px) {
+        .lane { grid-template-columns: 1fr; }
+        .priority-cols { grid-template-columns: 1fr; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .lane, .dot { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow" id="eyebrow">Dailyapss - Auto · Point hebdomadaire</p>
+        <h1>La semaine écoulée &amp; ce qui avance</h1>
+      </div>
+      <div class="header-actions">
+        <button id="download-pdf" class="dl-btn" type="button" data-html2canvas-ignore="true">
+          ⬇ Télécharger en PDF
+        </button>
+        <span class="live"><span class="dot"></span><span id="freshness">connexion…</span></span>
+      </div>
+    </header>
+    <section class="boost">
+      <div class="boost-top">
+        <div class="boost-card">
+          <h2 class="boost-title">BOOST<span class="accent">HEBDO</span></h2>
+          <span class="boost-pill" id="boost-date">Kick-off • Semaine du …</span>
+        </div>
+        <div class="boost-card boost-dark">
+          <p class="boost-eyebrow"><span>💬</span> Thème de la semaine</p>
+          <input class="theme-input" data-boost="theme" type="text"
+                 placeholder="Thème de la semaine…" />
+          <input class="theme-quote" data-boost="themeQuote" type="text"
+                 placeholder="« Un mot d'ordre… »" />
+        </div>
+      </div>
+      <div class="boost-row">
+        <div class="boost-card">
+          <p class="meteo-title">Météo d'équipe</p>
+          <div class="meteo-emojis">🤩 😄 😊 😐 😩</div>
+          <p class="meteo-q">👇 Quelle est votre énergie ce matin ?</p>
+        </div>
+        <div class="boost-card">
+          <span class="boost-icon">🔥</span>
+          <p class="boost-label">Incidents ouverts</p>
+          <div class="incident-inputs">
+            <input data-boost="incidentsA" type="number" inputmode="numeric" />
+            <span class="vs">vs</span>
+            <input data-boost="incidentsB" type="number" inputmode="numeric" />
+          </div>
+        </div>
+        <div class="boost-card">
+          <span class="boost-icon">⚡</span>
+          <p class="boost-label">Indicateurs à venir</p>
+          <p class="boost-metric metric-x">X</p>
+        </div>
+        <div class="boost-card">
+          <span class="boost-icon">🚀</span>
+          <p class="boost-label">Indicateurs à venir</p>
+          <p class="boost-metric metric-y">X</p>
+        </div>
+      </div>
+      <div class="tour">
+        <span class="boost-icon">💬</span>
+        <input data-boost="tourDeTable" type="text"
+               placeholder="Tour de table : votre question…" />
+      </div>
+    </section>
+
+    <main id="board">
+      <p class="notice">Chargement de la semaine…</p>
+    </main>
+
+    <script>
+      // ---- BOOST HEBDO banner: auto date + editable fields persisted locally ----
+      (() => {
+        const now = new Date();
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+        document.getElementById("boost-date").textContent =
+          "Kick-off • Semaine du " + monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+
+        const defaults = {
+          theme: "Flux Financier € + VNL + Sale's UP",
+          themeQuote: "« On lâche rien cette fin de mois ! »",
+          incidentsA: "39",
+          incidentsB: "37",
+          tourDeTable: "Tour de table : Vous avez pensé quoi de Devtalk de la semaine dernière ?",
+        };
+        for (const field of document.querySelectorAll("[data-boost]")) {
+          const key = "boost." + field.dataset.boost;
+          const saved = localStorage.getItem(key);
+          field.value = saved !== null ? saved : (defaults[field.dataset.boost] ?? "");
+          field.addEventListener("input", () => localStorage.setItem(key, field.value));
+        }
+      })();
+
+      const board = document.getElementById("board");
+      const freshness = document.getElementById("freshness");
+
+      // ---- Download the whole view as a PDF ----
+      const downloadBtn = document.getElementById("download-pdf");
+      downloadBtn.addEventListener("click", async () => {
+        const frDate = new Date().toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+        const original = downloadBtn.textContent;
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = "Génération…";
+        try {
+          await html2pdf()
+            .set({
+              margin: 6,
+              filename: `Boost HEBDO - ${frDate}.pdf`,
+              image: { type: "jpeg", quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true, backgroundColor: "#f4f6f8" },
+              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+              pagebreak: { mode: ["css", "legacy"] },
+            })
+            .from(document.body)
+            .save();
+        } catch (err) {
+          alert("Échec de la génération du PDF : " + (err?.message ?? err));
+        } finally {
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = original;
+        }
+      });
+
+      document.getElementById("eyebrow").textContent =
+        "Dailyapss - Auto · Hebdo du " +
+        new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+      const initials = (name) =>
+        name === "Non assigné"
+          ? "?"
+          : name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+
+      const NO_COMPONENT = "Sans composant";
+
+      // Stable unique background color per component name (hash -> hue).
+      const componentColor = (name) => {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+          hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        }
+        const hue = hash % 360;
+        return `hsl(${hue}, 85%, 60%)`;
+      };
+
+      // Renders a column's cards (already scoped to one component + person).
+      const columnHtml = (cards, emptyText) => {
+        if (!cards.length) return `<p class="empty">${emptyText}</p>`;
+        return cards.map(cardHtml).join("");
+      };
+
+      // Pivots the per-person payload into component → person → {done, progress}.
+      const buildComponentGroups = (people) => {
+        const comps = new Map();
+        const ensure = (comp, person) => {
+          if (!comps.has(comp)) comps.set(comp, new Map());
+          const byPerson = comps.get(comp);
+          if (!byPerson.has(person)) byPerson.set(person, { name: person, done: [], progress: [] });
+          return byPerson.get(person);
+        };
+        for (const person of people) {
+          for (const card of person.done) {
+            const names = card.components.length ? card.components : [NO_COMPONENT];
+            for (const name of names) ensure(name, person.name).done.push(card);
+          }
+          for (const card of person.progress) {
+            const names = card.components.length ? card.components : [NO_COMPONENT];
+            for (const name of names) ensure(name, person.name).progress.push(card);
+          }
+        }
+        return comps;
+      };
+
+      const sortByLabel = (a, b, last) => {
+        if (a === last) return 1;
+        if (b === last) return -1;
+        return a.localeCompare(b);
+      };
+
+      // Renders cards grouped under their component(s) — used by the priorities
+      // section, where we group by component but not by user.
+      const cardsByComponentHtml = (cards, emptyText) => {
+        if (!cards.length) return `<p class="empty">${emptyText}</p>`;
+        const byComponent = new Map();
+        for (const card of cards) {
+          const names = card.components.length ? card.components : [NO_COMPONENT];
+          for (const name of names) {
+            if (!byComponent.has(name)) byComponent.set(name, []);
+            byComponent.get(name).push(card);
+          }
+        }
+        const names = [...byComponent.keys()].sort((a, b) => sortByLabel(a, b, NO_COMPONENT));
+        return names
+          .map(
+            (name) => `
+              <div class="comp-group">
+                <p class="comp-label"><span class="comp-chip" style="background: ${componentColor(name)};">${escapeHtml(name)}</span></p>
+                ${byComponent.get(name).map(cardHtml).join("")}
+              </div>`
+          )
+          .join("");
+      };
+
+      // Flattens every in-progress card across people, de-duplicated by key.
+      const collectProgress = (people) => {
+        const seen = new Map();
+        for (const person of people) {
+          for (const card of person.progress) seen.set(card.key, card);
+        }
+        return [...seen.values()];
+      };
+
+      const PRIORITY_GROUPS = [
+        { value: "Highest", label: "🔥 MUST DO (À livrer impérativement)", cls: "highest" },
+        { value: "High", label: "⚡ MUST DO (Deadline à venir)", cls: "high" },
+      ];
+
+      const prioritiesHtml = (people) => {
+        const cards = collectProgress(people);
+        const columns = PRIORITY_GROUPS.map((group) => {
+          const matching = cards.filter((card) => card.priority === group.value);
+          return `
+            <div class="priority-group">
+              <p class="priority-label ${group.cls}">${group.label}</p>
+              ${cardsByComponentHtml(matching, "Aucun ticket")}
+            </div>`;
+        }).join("");
+        return `
+          <section class="priorities">
+            <h2 class="priorities-title">Les priorités de la semaine</h2>
+            <div class="priority-cols">${columns}</div>
+          </section>`;
+      };
+
+      const cardHtml = (card) => `
+        <a class="card" href="${card.url}" target="_blank" rel="noopener">
+          <div class="top">
+            <span class="key">${card.key}</span>
+            <span class="pill">${card.status}</span>
+          </div>
+          <div class="summary">${escapeHtml(card.summary)}</div>
+        </a>`;
+
+      const escapeHtml = (s) =>
+        s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      const collapsed = new Set();
+      let firstRender = true;
+
+      const laneHtml = (person) => `
+        <section class="lane">
+          <div class="who">
+            <div class="avatar">${initials(person.name)}</div>
+            <div>
+              <div class="name">${escapeHtml(person.name)}</div>
+              <div class="count">${person.done.length} terminé(s) cette semaine · ${person.progress.length} en cours</div>
+            </div>
+          </div>
+          <div class="col-done">
+            <p class="col-label"><span style="color: green;">Terminé cette semaine</span></p>
+            <div class="stack">
+              ${columnHtml(person.done, "Rien de terminé cette semaine")}
+            </div>
+          </div>
+          <div class="col-progress">
+            <p class="col-label"><span style="color: blue;">Toujours en cours</span></p>
+            <div class="stack">
+              ${columnHtml(person.progress, "Rien en cours")}
+            </div>
+          </div>
+        </section>`;
+
+      const componentBlockHtml = (name, byPerson) => {
+        const isCollapsed = collapsed.has(name);
+        const people = [...byPerson.values()].sort((a, b) => sortByLabel(a.name, b.name, "Non assigné"));
+        const doneCount = people.reduce((n, p) => n + p.done.length, 0);
+        const progressCount = people.reduce((n, p) => n + p.progress.length, 0);
+        return `
+        <section class="component-block${isCollapsed ? " collapsed" : ""}" data-component="${escapeHtml(name)}">
+          <button class="component-head" type="button" aria-expanded="${!isCollapsed}">
+            <span class="comp-chip" style="background: ${componentColor(name)};">&nbsp;</span>
+            <h2 class="component-title">${escapeHtml(name)}</h2>
+            <span class="count">${doneCount} terminé(s) · ${progressCount} en cours</span>
+            <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="lanes">${people.map(laneHtml).join("")}</div>
+        </section>`;
+      };
+
+      const render = (data) => {
+        const people = data.people ?? [];
+        if (!people.length) {
+          board.innerHTML = '<p class="notice">Aucun ticket terminé ou en cours sur la semaine écoulée.</p>';
+          return;
+        }
+        const comps = buildComponentGroups(people);
+        const names = [...comps.keys()].sort((a, b) => sortByLabel(a, b, NO_COMPONENT));
+        if (firstRender) {
+          names.forEach((name) => collapsed.add(name));
+          firstRender = false;
+        }
+        board.innerHTML =
+          '<h2 class="section-title">🏆 Les victoires de la semaine dernière</h2>' +
+          names.map((name) => componentBlockHtml(name, comps.get(name))).join("") +
+          prioritiesHtml(people);
+      };
+
+      const load = async () => {
+        try {
+          const res = await fetch("/api/weekly");
+          if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+          const data = await res.json();
+          render(data);
+          freshness.textContent = "mis à jour à " + new Date(data.generatedAt).toLocaleTimeString("fr-FR");
+        } catch (err) {
+          board.innerHTML = `<p class="notice error">Impossible de joindre Jira : ${escapeHtml(String(err.message))}</p>`;
+          freshness.textContent = "échec de la mise à jour";
+        }
+      };
+
+      board.addEventListener("click", (e) => {
+        const head = e.target.closest(".component-head");
+        if (!head) return;
+        const block = head.closest(".component-block");
+        const name = block.dataset.component;
+        if (collapsed.has(name)) collapsed.delete(name);
+        else collapsed.add(name);
+        block.classList.toggle("collapsed");
+        head.setAttribute("aria-expanded", String(!block.classList.contains("collapsed")));
+      });
+
+      load();
+      setInterval(load, 60000);
+    </script>
+  </body>
+</html>
