@@ -221,12 +221,50 @@
       @media (max-width: 760px) {
         .lane { grid-template-columns: 1fr; }
       }
+      /* Welcome splash shown for 10s when the board opens. */
+      .splash {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 2rem;
+        background: rgba(15, 15, 18, 0.94);
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        animation: splashOut 0.6s ease 9.4s forwards;
+      }
+      .splash.dismissed { display: none; }
+      .splash-text {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: clamp(1.8rem, 5vw, 4rem);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        max-width: 20ch;
+        animation: splashPop 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+      }
+      .splash-text .accent { color: var(--accent); text-transform: capitalize; }
+      @keyframes splashPop {
+        0% { opacity: 0; transform: scale(0.6); }
+        60% { opacity: 1; transform: scale(1.05); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes splashOut {
+        to { opacity: 0; visibility: hidden; }
+      }
       @media (prefers-reduced-motion: reduce) {
         .lane, .dot { animation: none; }
+        .splash-text { animation: none; }
+        .splash { animation: splashOut 0.3s ease 9.7s forwards; }
       }
     </style>
   </head>
   <body>
+    <div class="splash" id="splash" role="dialog" aria-label="Bienvenue">
+      <div class="splash-text">Bonjour à tous, bienvenue à ce daily du <span class="accent" id="splash-date"></span></div>
+    </div>
     <header>
       <div class="brand">
         <img class="logo" src="/images/logo%20(2).png" alt="Logo" />
@@ -242,6 +280,18 @@
     </main>
 
     <script>
+      // Welcome splash: pops in, then fades out and is removed after 10 seconds
+      // (the CSS animation handles the fade; this clears it from the DOM and
+      // allows an early dismiss on click).
+      const splash = document.getElementById("splash");
+      if (splash) {
+        document.getElementById("splash-date").textContent =
+          new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        const dismissSplash = () => splash.classList.add("dismissed");
+        setTimeout(dismissSplash, 10000);
+        splash.addEventListener("click", dismissSplash);
+      }
+
       const board = document.getElementById("board");
       const freshness = document.getElementById("freshness");
 
@@ -371,7 +421,7 @@
                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span class="key">${parent.key}</span>
-              <span class="parent-summary">${escapeHtml(parent.summary)}</span>
+              <span class="parent-summary">${escapeHtml(cleanSummary(parent.summary))}</span>
               ${finishedAt ? `<span class="parent-finished">${formatFinished(finishedAt)}</span>` : ""}
               <span class="parent-count">${cards.length}</span>
             </button>
@@ -391,12 +441,23 @@
             <span class="key">${card.key}</span>
             <span class="pill">${card.status}</span>
           </div>
-          <div class="summary">${escapeHtml(card.summary)}</div>
+          <div class="summary">${escapeHtml(cleanSummary(card.summary))}</div>
           ${card.category === "done" && card.finishedAt ? `<div class="finished-date">Terminé le ${formatFinished(card.finishedAt)}</div>` : ""}
         </a>`;
 
       const escapeHtml = (s) =>
         s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      // Strips bracketed tags from a summary — story points like "[6.4pts]" and
+      // category prefixes like "[REFONTE]" — then tidies up the leftover leading
+      // separators (pipes / dashes) so e.g.
+      //   "[5.5pts] | [REFONTE] - Nouveau paramètre…" -> "Nouveau paramètre…"
+      const cleanSummary = (s) =>
+        s
+          .replace(/\[[^\]]*\]/g, "")   // drop every [..] tag
+          .replace(/\s+/g, " ")          // collapse whitespace
+          .replace(/^[\s|–—-]+/, "")    // trim leading separators / dashes
+          .trim();
 
       const collapsed = new Set();
       const expandedParents = new Set();
