@@ -120,6 +120,10 @@
       .lane.focused .col-todo,
       .lane.focused .col-estimate { display: none; }
       .lane.focused .col-active { display: block; }
+      /* Collapsing a lane wins over focus mode: a focused column must still hide
+         when the whole person section is collapsed. */
+      .lane.collapsed.focused { grid-template-columns: 1fr; }
+      .lane.collapsed .col-active { display: none; }
       @media (prefers-reduced-motion: reduce) {
         .chevron { transition: none; }
       }
@@ -233,7 +237,7 @@
         background: rgba(15, 15, 18, 0.94);
         backdrop-filter: blur(8px);
         cursor: pointer;
-        animation: splashOut 0.6s ease 9.4s forwards;
+        animation: splashOut 0.6s ease 5.4s forwards;
       }
       .splash.dismissed { display: none; }
       .splash-text {
@@ -257,7 +261,7 @@
       @media (prefers-reduced-motion: reduce) {
         .lane, .dot { animation: none; }
         .splash-text { animation: none; }
-        .splash { animation: splashOut 0.3s ease 9.7s forwards; }
+        .splash { animation: splashOut 0.3s ease 5.7s forwards; }
       }
     </style>
   </head>
@@ -288,7 +292,7 @@
         document.getElementById("splash-date").textContent =
           new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
         const dismissSplash = () => splash.classList.add("dismissed");
-        setTimeout(dismissSplash, 10000);
+        setTimeout(dismissSplash, 6000);
         splash.addEventListener("click", dismissSplash);
       }
 
@@ -556,10 +560,20 @@
         if (!who) return;
         const lane = who.closest(".lane");
         const name = lane.dataset.person;
-        if (collapsed.has(name)) collapsed.delete(name);
-        else collapsed.add(name);
-        lane.classList.toggle("collapsed");
-        who.setAttribute("aria-expanded", String(!lane.classList.contains("collapsed")));
+        const opening = collapsed.has(name);
+        if (opening) {
+          // Accordion: opening one person collapses every other person.
+          board.querySelectorAll(".lane").forEach((el) => collapsed.add(el.dataset.person));
+          collapsed.delete(name);
+        } else {
+          collapsed.add(name);
+        }
+        // Reflect the collapsed set on every lane in the DOM.
+        board.querySelectorAll(".lane").forEach((el) => {
+          const isCollapsed = collapsed.has(el.dataset.person);
+          el.classList.toggle("collapsed", isCollapsed);
+          el.querySelector(".who").setAttribute("aria-expanded", String(!isCollapsed));
+        });
       });
 
       load();
