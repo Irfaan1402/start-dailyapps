@@ -13,10 +13,10 @@ services:
         sync: false
       - key: JIRA_API_TOKEN
         sync: false
-      # Optional overrides — uncomment in the dashboard if you need them.
+      # Non-secret config — committed here so Render doesn't prompt for them.
       - key: JIRA_PROJECT_KEY
-        sync: false
+        value: DAA
       - key: JIRA_ESTIMATE_SPRINT
-        sync: false
+        value: À chiffrer
       - key: JIRA_COMPONENT_FIELD
-        sync: false
+        value: customfield_10390
