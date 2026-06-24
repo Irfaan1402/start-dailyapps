@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: standup-board
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      # Secrets — set these in the Render dashboard, not in this file.
+      - key: JIRA_BASE_URL
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      # Optional overrides — uncomment in the dashboard if you need them.
+      - key: JIRA_PROJECT_KEY
+        sync: false
+      - key: JIRA_ESTIMATE_SPRINT
+        sync: false
+      - key: JIRA_COMPONENT_FIELD
+        sync: false
